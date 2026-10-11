@@ -5,6 +5,9 @@ import { BriefForm } from "@/components/BriefForm";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import { BriefView, type TabId } from "@/components/BriefView";
 import { Compare, Features, Footer, HowItWorks, Meetings, RecentList, StatsStrip, type Meeting } from "@/components/HomeSections";
+import { CalendarCard, Leaderboard, NextActions, PipelineBands, RoundCoverage } from "@/components/Dashboard";
+import { Directory } from "@/components/Directory";
+import type { Action } from "@/lib/insights";
 import type { Preset } from "@/components/BriefForm";
 import { ResearchLedger, initialLedger, type LedgerState } from "@/components/ResearchLedger";
 import type { Brief, ProgressEvent } from "@/lib/types";
@@ -41,18 +44,27 @@ function saveRecent(b: Brief) {
   } catch {}
 }
 
+type HomeTab = "dashboard" | "briefs" | "meetings" | "compare" | "directory";
+const BOOKING_KEY = "supahealth:calcom";
+
 export default function Home() {
   const [view, setView] = useState<View>({ kind: "idle" });
   const [ledger, setLedger] = useState<LedgerState>(initialLedger);
   const [recent, setRecent] = useState<Brief[]>([]);
   const [profile, setProfile] = useState<Profile>(defaultProfile);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [homeTab, setHomeTab] = useState<"overview" | "recent" | "meetings" | "compare">("overview");
+  const [homeTab, setHomeTab] = useState<HomeTab>("dashboard");
   const [drawer, setDrawer] = useState(false);
   const [preset, setPreset] = useState<Preset | null>(null);
+  const [booking, setBooking] = useState("");
+  const [theme, setTheme] = useState<"light" | "dark">("light");
 
-  useEffect(() => { setRecent(loadRecent()); setProfile(loadProfile()); setMeetings(loadMeetings()); }, []);
-  useEffect(() => { window.scrollTo({ top: 0 }); }, [view.kind]);
+  useEffect(() => {
+    setRecent(loadRecent()); setProfile(loadProfile()); setMeetings(loadMeetings());
+    try { setBooking(localStorage.getItem(BOOKING_KEY) || ""); } catch {}
+    setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+  }, []);
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [view.kind, homeTab]);
   useEffect(() => {
     if (!drawer) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawer(false);
@@ -60,6 +72,12 @@ export default function Home() {
     return () => window.removeEventListener("keydown", onKey);
   }, [drawer]);
 
+  function toggleTheme() {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("supahealth:theme", next); } catch {}
+  }
   function saveProfile(p: Profile) {
     setProfile(p);
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch {}
@@ -68,20 +86,33 @@ export default function Home() {
     setMeetings(list);
     try { localStorage.setItem(MEETINGS_KEY, JSON.stringify(list)); } catch {}
   }
+  function saveBooking(u: string) {
+    setBooking(u);
+    try { localStorage.setItem(BOOKING_KEY, u); } catch {}
+  }
   function removeBrief(b: Brief) {
     const list = loadRecent().filter((x) => x.meta.generatedAt !== b.meta.generatedAt);
     try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch {}
     setRecent(list);
   }
-  function goHome(tab: typeof homeTab = "overview") {
+  function goTab(tab: HomeTab) {
+    if (view.kind === "running") return;
     setView({ kind: "idle" });
     setHomeTab(tab);
-    setTimeout(() => document.getElementById("home-tabs")?.scrollIntoView({ behavior: "smooth" }), 60);
   }
-  function prepareFromMeeting(investor: string, firm: string) {
-    setHomeTab("overview");
+  function prepare(investor: string, firm: string) {
+    setView({ kind: "idle" });
+    setHomeTab("dashboard");
     setPreset({ investor, firm, nonce: Date.now() });
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 30);
+  }
+  const openBrief = (b: Brief, tab?: TabId) => setView({ kind: "done", brief: b, tab });
+  function onAction(a: Action) {
+    if (!a.cta) return;
+    if (a.cta.kind === "prepare") prepare(a.cta.investor ?? "", a.cta.firm ?? "");
+    else if (a.cta.kind === "open" && a.cta.brief) openBrief(a.cta.brief);
+    else if (a.cta.kind === "meetings") goTab("meetings");
+    else if (a.cta.kind === "directory") goTab("directory");
   }
 
   function apply(e: ProgressEvent) {
@@ -135,21 +166,40 @@ export default function Home() {
   }
 
   const upcoming = meetings.filter((m) => new Date(m.when).getTime() > Date.now()).length;
-  const HOME_TABS = [
-    { id: "overview" as const, label: "Overview" },
-    { id: "recent" as const, label: "Recent briefs", count: recent.length },
-    { id: "meetings" as const, label: "Meetings", count: upcoming },
-    { id: "compare" as const, label: "Compare investors", count: recent.length >= 2 ? recent.length : 0 },
+  const NAV: { id: HomeTab; label: string; count?: number }[] = [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "briefs", label: "Briefs", count: recent.length },
+    { id: "meetings", label: "Meetings", count: upcoming },
+    { id: "compare", label: "Compare" },
+    { id: "directory", label: "Investor directory" },
   ];
+  const activeNav: HomeTab | null = view.kind === "idle" || view.kind === "error" ? homeTab : view.kind === "done" ? "briefs" : null;
+  const PAGE_HEAD: Record<Exclude<HomeTab, "dashboard">, [string, string]> = {
+    briefs: ["Briefs", "Every brief you've prepared, saved in this browser."],
+    meetings: ["Meetings and calendar", "Plan this week's investor meetings, import them from your calendar, and prepare each brief the day before."],
+    compare: ["Compare investors", "Rank your pipeline by odds and compare up to three investors side by side."],
+    directory: ["Investor directory", "Indian investors relevant to a seed-stage consumer health brand. Filter, then prepare a live brief."],
+  };
 
   return (
     <div className="shell">
       <header className="topbar no-print">
-        <button className="topbar-home" onClick={() => goHome()} aria-label="Go to the home page">
+        <button className="topbar-home" onClick={() => goTab("dashboard")} aria-label="Go to the dashboard">
           <Logo />
         </button>
+        <nav className="topnav" aria-label="Main">
+          {NAV.map((n) => (
+            <button key={n.id} className={`navpill ${activeNav === n.id ? "is-active" : ""}`} aria-current={activeNav === n.id ? "page" : undefined} onClick={() => goTab(n.id)} disabled={view.kind === "running"}>
+              {n.label}{n.count ? <span className="navcount">{n.count}</span> : null}
+            </button>
+          ))}
+        </nav>
         <div className="topbar-right">
-          <span className="live-pill"><span className="live-dot" aria-hidden="true" />Live web research</span>
+          <button className="icon-btn icon-btn-dark" onClick={toggleTheme} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} title={theme === "dark" ? "Light mode" : "Dark mode"}>
+            {theme === "dark"
+              ? <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><circle cx="12" cy="12" r="4.5" fill="currentColor" /><g stroke="currentColor" strokeWidth="2" strokeLinecap="round">{[0, 45, 90, 135, 180, 225, 270, 315].map((a) => <line key={a} x1="12" y1="2.5" x2="12" y2="4.5" transform={`rotate(${a} 12 12)`} />)}</g></svg>
+              : <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" fill="currentColor" /></svg>}
+          </button>
           <button className="workspace-btn" onClick={() => setDrawer(true)} aria-haspopup="dialog">
             <span className="avatar-sm" aria-hidden="true">{profile.founderName.slice(0, 1)}</span>
             <span className="topbar-who strong">{profile.founderName}&apos;s workspace</span>
@@ -174,7 +224,7 @@ export default function Home() {
       )}
 
       {view.kind === "done" ? (
-        <BriefView key={view.brief.meta.generatedAt + (view.tab ?? "")} brief={view.brief} initialTab={view.tab} onNew={() => goHome()} />
+        <BriefView key={view.brief.meta.generatedAt + (view.tab ?? "")} brief={view.brief} initialTab={view.tab} onNew={() => goTab("dashboard")} />
       ) : view.kind === "running" ? (
         <>
           <section className="hero hero-run"><div className="hero-inner"><p className="hero-kicker">Researching across the live web</p></div></section>
@@ -182,12 +232,12 @@ export default function Home() {
             <ResearchLedger state={ledger} investor={view.investor} firm={view.firm} />
           </main>
         </>
-      ) : (
+      ) : homeTab === "dashboard" ? (
         <>
           <section className="hero hero-home">
             <div className="hero-inner home-grid">
               <div className="intro">
-                <p className="hero-kicker">Pre-meeting investor intelligence</p>
+                <p className="hero-kicker">Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {profile.founderName}</p>
                 <h1 className="headline">Know who&apos;s across the table.</h1>
                 <p className="dek">
                   Enter an investor and their firm. Get a sourced brief on their recent deals, what they
@@ -206,61 +256,61 @@ export default function Home() {
             </div>
           </section>
 
-          <nav className="tabs no-print" id="home-tabs" role="tablist" aria-label="Workspace">
-            <div className="tabs-inner">
-              {HOME_TABS.map((t) => (
-                <button key={t.id} role="tab" aria-selected={homeTab === t.id} className={`tab ${homeTab === t.id ? "is-active" : ""}`} onClick={() => setHomeTab(t.id)}>
-                  {t.label}{t.count ? <span className="tab-count">{t.count}</span> : null}
-                </button>
-              ))}
-            </div>
-          </nav>
-
           <main className="main">
-            {homeTab === "overview" && (
-              <div className="tabpanel is-active">
-                <StatsStrip briefs={recent} meetings={meetings} />
-                <h2 className="section-title">What&apos;s in every brief <span className="muted">click to see it on your latest brief</span></h2>
-                <Features latest={recent[0]} onOpen={(b, tab) => setView({ kind: "done", brief: b, tab })} />
-                <h2 className="section-title">How it works</h2>
-                <HowItWorks />
-                {recent.length > 0 && (
-                  <>
-                    <h2 className="section-title">Latest briefs <button className="link-btn" onClick={() => setHomeTab("recent")}>See all {recent.length}</button></h2>
-                    <RecentList briefs={recent.slice(0, 3)} onOpen={(b) => setView({ kind: "done", brief: b })} onRemove={removeBrief} />
-                  </>
-                )}
-              </div>
-            )}
-            {homeTab === "recent" && (
-              <div className="tabpanel is-active">
-                <h2 className="section-title first">Recent briefs <span className="muted">saved in this browser</span></h2>
-                <RecentList briefs={recent} onOpen={(b) => setView({ kind: "done", brief: b })} onRemove={removeBrief} />
-              </div>
-            )}
+            <StatsStrip briefs={recent} meetings={meetings} />
+            <div className="grid dash-row">
+              <div className="span-7"><CalendarCard meetings={meetings} briefs={recent} onOpen={(b) => openBrief(b)} /></div>
+              <div className="span-5"><NextActions briefs={recent} meetings={meetings} raise={profile.raiseAmountCr} onAction={onAction} /></div>
+            </div>
+            <div className="grid dash-row">
+              <div className="span-5"><RoundCoverage briefs={recent} raise={profile.raiseAmountCr} /></div>
+              <div className="span-3"><PipelineBands briefs={recent} /></div>
+              <div className="span-4"><Leaderboard briefs={recent} onOpen={(b) => openBrief(b)} /></div>
+            </div>
+
+            <h2 className="section-title">Investors to consider <button className="link-btn" onClick={() => goTab("directory")}>Open directory</button></h2>
+            <Directory briefs={recent} onPrepare={prepare} onOpen={(b) => openBrief(b)} compact />
+
+            <h2 className="section-title">What&apos;s in every brief <span className="muted">click to see it on your latest brief</span></h2>
+            <Features latest={recent[0]} onOpen={(b, tab) => openBrief(b, tab)} />
+            <h2 className="section-title">How it works</h2>
+            <HowItWorks />
+          </main>
+        </>
+      ) : (
+        <>
+          <section className="hero hero-page">
+            <div className="hero-inner">
+              <h1 className="page-title">{PAGE_HEAD[homeTab][0]}</h1>
+              <p className="page-sub">{PAGE_HEAD[homeTab][1]}</p>
+            </div>
+          </section>
+          <main className="main">
+            {homeTab === "briefs" && <RecentList briefs={recent} onOpen={(b) => openBrief(b)} onRemove={removeBrief} />}
             {homeTab === "meetings" && (
-              <div className="tabpanel is-active">
-                <h2 className="section-title first">This week&apos;s meetings <span className="muted">prepare each brief the day before</span></h2>
+              <>
+                <div className="grid dash-row first">
+                  <div className="span-12"><CalendarCard meetings={meetings} briefs={recent} onOpen={(b) => openBrief(b)} /></div>
+                </div>
+                <h2 className="section-title">All meetings</h2>
                 <Meetings
                   meetings={meetings} briefs={recent}
                   onAdd={(m) => saveMeetings([...meetings, m])}
+                  onImport={(ms) => saveMeetings([...meetings.filter((m) => !ms.some((x) => x.id === m.id)), ...ms])}
                   onRemove={(id) => saveMeetings(meetings.filter((m) => m.id !== id))}
-                  onPrepare={prepareFromMeeting}
-                  onOpen={(b) => setView({ kind: "done", brief: b })}
+                  onPrepare={prepare}
+                  onOpen={(b) => openBrief(b)}
+                  bookingUrl={booking} onBookingUrl={saveBooking}
                 />
-              </div>
+              </>
             )}
-            {homeTab === "compare" && (
-              <div className="tabpanel is-active">
-                <h2 className="section-title first">Compare investors <span className="muted">decide where to spend your time</span></h2>
-                <Compare briefs={recent} onOpen={(b) => setView({ kind: "done", brief: b })} />
-              </div>
-            )}
+            {homeTab === "compare" && <Compare briefs={recent} onOpen={(b) => openBrief(b)} />}
+            {homeTab === "directory" && <Directory briefs={recent} onPrepare={prepare} onOpen={(b) => openBrief(b)} />}
           </main>
         </>
       )}
 
-      <Footer onTab={(t) => goHome(t as typeof homeTab)} />
+      <Footer onTab={(t) => goTab(t as HomeTab)} />
     </div>
   );
 }

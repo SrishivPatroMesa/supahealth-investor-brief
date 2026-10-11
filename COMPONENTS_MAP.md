@@ -53,6 +53,11 @@ Input UI (+ editable founder profile) ──► /api/brief (streams progress)
 | 20 | Export | UI | Save as PDF (print stylesheet), copy or download Markdown | Browser print, Clipboard API | `lib/markdown.ts`, `app/globals.css` |
 | 21 | Recent briefs | UI | Last 6 briefs saved in the browser | localStorage | `app/page.tsx` |
 | 22 | Health check | Ops | Confirms key, model and grounding on the live deployment | Next.js route | `app/api/health/route.ts` |
+| 24 | Dashboard | UI | Stats strip, meeting calendar, next actions, round coverage (odds × expected cheque vs target), pipeline by outlook, best fits | React, SVG/CSS | `components/Dashboard.tsx`, `lib/insights.ts` |
+| 25 | Meetings and calendar | UI + logic | Month calendar, meeting planner, .ics import (Cal.com, Google, Outlook), "Add to calendar" export with a day-before reminder, Cal.com booking link | TypeScript, localStorage | `components/HomeSections.tsx`, `lib/calendar.ts` |
+| 26 | Compare investors | UI | Ranks briefed investors by odds; side-by-side table of up to three | React | `components/HomeSections.tsx` |
+| 27 | Investor directory | Data + UI | Starter list of 16 Indian consumer-relevant investors with filters, charts and one-click briefs | TypeScript | `lib/directory.ts`, `components/Directory.tsx` |
+| 28 | Workspace drawer and dark mode | UI | Edit the founder profile from the top bar; light/dark theme saved per browser | React, CSS variables | `app/page.tsx`, `app/globals.css` |
 | 23 | Hosting and secrets | Infra | Public URL; API key stored server-side only | Vercel, env vars, GitHub | `.env.example` |
 
 ## Prediction model

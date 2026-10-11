@@ -4,8 +4,9 @@ import type { Brief } from "@/lib/types";
 import type { TabId } from "./BriefView";
 import { Monogram, Ring } from "./charts";
 import { Logo } from "./Logo";
+import { meetingIcs, parseIcs, type CalMeeting } from "@/lib/calendar";
 
-export type Meeting = { id: string; investor: string; firm: string; when: string };
+export type Meeting = CalMeeting;
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
 export const findBrief = (briefs: Brief[], investor: string) =>
@@ -100,33 +101,73 @@ export function RecentList({ briefs, onOpen, onRemove }: { briefs: Brief[]; onOp
 }
 
 /* ---------------- Meetings planner ---------------- */
+function download(name: string, text: string) {
+  const blob = new Blob([text], { type: "text/calendar" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href);
+}
+
 export function Meetings({
-  meetings, briefs, onAdd, onRemove, onPrepare, onOpen,
+  meetings, briefs, onAdd, onImport, onRemove, onPrepare, onOpen, bookingUrl, onBookingUrl,
 }: {
   meetings: Meeting[]; briefs: Brief[];
-  onAdd: (m: Meeting) => void; onRemove: (id: string) => void;
+  onAdd: (m: Meeting) => void; onImport: (ms: Meeting[]) => void; onRemove: (id: string) => void;
   onPrepare: (investor: string, firm: string) => void; onOpen: (b: Brief) => void;
+  bookingUrl: string; onBookingUrl: (u: string) => void;
 }) {
   const [investor, setInvestor] = useState("");
   const [firm, setFirm] = useState("");
   const [when, setWhen] = useState("");
+  const [note, setNote] = useState("");
+  const [copied, setCopied] = useState(false);
   const sorted = [...meetings].sort((a, b) => a.when.localeCompare(b.when));
   const ready = investor.trim() && firm.trim() && when;
+  const appUrl = typeof window !== "undefined" ? window.location.origin : "";
+
   return (
     <div className="grid">
-      <form className="card span-4 meet-form" onSubmit={(e) => {
-        e.preventDefault();
-        if (!ready) return;
-        onAdd({ id: `${Date.now()}`, investor: investor.trim(), firm: firm.trim(), when });
-        setInvestor(""); setFirm(""); setWhen("");
-      }}>
-        <h3 className="card-title">Add a meeting</h3>
-        <label className="field"><span className="field-label">Investor</span><input value={investor} onChange={(e) => setInvestor(e.target.value)} placeholder="Full name" /></label>
-        <label className="field"><span className="field-label">Firm</span><input value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="Firm name" /></label>
-        <label className="field"><span className="field-label">Date and time</span><input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></label>
-        <button className="btn btn-primary btn-sm" type="submit" disabled={!ready}>Add meeting</button>
-        <p className="muted-p small">Saved in this browser. Each meeting shows whether its brief is ready.</p>
-      </form>
+      <div className="span-4 stack">
+        <form className="card meet-form" onSubmit={(e) => {
+          e.preventDefault();
+          if (!ready) return;
+          onAdd({ id: `${Date.now()}`, investor: investor.trim(), firm: firm.trim(), when, source: "manual" });
+          setInvestor(""); setFirm(""); setWhen("");
+        }}>
+          <h3 className="card-title">Add a meeting</h3>
+          <label className="field"><span className="field-label">Investor</span><input value={investor} onChange={(e) => setInvestor(e.target.value)} placeholder="Full name" /></label>
+          <label className="field"><span className="field-label">Firm</span><input value={firm} onChange={(e) => setFirm(e.target.value)} placeholder="Firm name" /></label>
+          <label className="field"><span className="field-label">Date and time</span><input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} /></label>
+          <button className="btn btn-primary btn-sm" type="submit" disabled={!ready}>Add meeting</button>
+        </form>
+
+        <div className="card meet-form">
+          <h3 className="card-title">Import from your calendar</h3>
+          <p className="muted-p small">Export a .ics file from Cal.com, Google Calendar or Outlook and drop it here. Events titled like &ldquo;Rahul Sharma (Acme Ventures)&rdquo; are read as investor and firm.</p>
+          <label className="file-drop">
+            <input type="file" accept=".ics,text/calendar" onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              const found = parseIcs(await f.text());
+              onImport(found);
+              setNote(found.length ? `Imported ${found.length} upcoming event${found.length === 1 ? "" : "s"}.` : "No upcoming events found in that file.");
+              e.target.value = "";
+            }} />
+            <span>Choose .ics file</span>
+          </label>
+          {note && <p className="ok-note">{note}</p>}
+        </div>
+
+        <div className="card meet-form">
+          <h3 className="card-title">Your Cal.com booking link</h3>
+          <p className="muted-p small">Share it with investors so they can pick a slot. Booked meetings can be imported above.</p>
+          <input className="search" value={bookingUrl} onChange={(e) => onBookingUrl(e.target.value)} placeholder="https://cal.com/priya/investor-call" />
+          <div className="row-btns">
+            <button className="btn btn-sm btn-quiet" disabled={!bookingUrl} onClick={async () => { await navigator.clipboard.writeText(bookingUrl); setCopied(true); setTimeout(() => setCopied(false), 1600); }}>{copied ? "Copied" : "Copy link"}</button>
+            <a className={`btn btn-sm btn-quiet ${bookingUrl ? "" : "is-disabled"}`} href={bookingUrl || undefined} target="_blank" rel="noopener noreferrer">Open booking page</a>
+          </div>
+        </div>
+      </div>
+
       <div className="span-8">
         {sorted.length ? (
           <div className="meet-list">
@@ -142,21 +183,22 @@ export function Meetings({
                     <small>{d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}</small>
                   </div>
                   <div className="meet-body">
-                    <strong>{m.investor}</strong>
-                    <span>{m.firm}</span>
+                    <strong>{m.investor}{m.source === "calendar" && <span className="src-badge">From calendar</span>}</strong>
+                    <span>{m.firm || "Firm not set"}</span>
                     <small className={brief ? "ok" : "todo"}>{relTime(m.when)}{brief ? `, brief ready (fit ${brief.prediction.index})` : ", brief not prepared"}</small>
                   </div>
                   <div className="meet-actions">
                     {brief
                       ? <button className="btn btn-sm btn-quiet" onClick={() => onOpen(brief)}>Open brief</button>
                       : <button className="btn btn-sm btn-primary" onClick={() => onPrepare(m.investor, m.firm)}>Prepare brief</button>}
+                    <button className="btn btn-sm btn-quiet" onClick={() => download(`meeting-${m.investor.toLowerCase().replace(/\W+/g, "-")}.ics`, meetingIcs(m, appUrl))} title="Download an .ics with a reminder the day before">Add to calendar</button>
                     <button className="recent-x" onClick={() => onRemove(m.id)} aria-label={`Remove meeting with ${m.investor}`}>×</button>
                   </div>
                 </div>
               );
             })}
           </div>
-        ) : <p className="empty">No meetings planned. Add this week&apos;s investor meetings and prepare each brief the day before.</p>}
+        ) : <p className="empty">No meetings planned. Add this week&apos;s investor meetings, or import them from your calendar.</p>}
       </div>
     </div>
   );
@@ -234,10 +276,11 @@ export function Footer({ onTab }: { onTab: (t: string) => void }) {
         </div>
         <div>
           <h4>Workspace</h4>
-          <button onClick={() => onTab("overview")}>Prepare a brief</button>
-          <button onClick={() => onTab("recent")}>Recent briefs</button>
-          <button onClick={() => onTab("meetings")}>Meetings</button>
+          <button onClick={() => onTab("dashboard")}>Dashboard</button>
+          <button onClick={() => onTab("briefs")}>Briefs</button>
+          <button onClick={() => onTab("meetings")}>Meetings and calendar</button>
           <button onClick={() => onTab("compare")}>Compare investors</button>
+          <button onClick={() => onTab("directory")}>Investor directory</button>
         </div>
         <div>
           <h4>How it&apos;s built</h4>
@@ -248,7 +291,8 @@ export function Footer({ onTab }: { onTab: (t: string) => void }) {
         </div>
         <div>
           <h4>Good to know</h4>
-          <p>Briefs and meetings are saved only in this browser.</p>
+          <p>Briefs, meetings and your profile are saved only in this browser.</p>
+          <p>The investor directory is a starter list; run a brief to verify.</p>
           <p>Public sources only; LinkedIn connections aren&apos;t visible.</p>
           <p>Verify key facts before the meeting.</p>
         </div>
