@@ -3,20 +3,26 @@ import { useEffect, useState } from "react";
 import { Logo } from "@/components/Logo";
 import { BriefForm } from "@/components/BriefForm";
 import { ProfilePanel } from "@/components/ProfilePanel";
-import { BriefView } from "@/components/BriefView";
+import { BriefView, type TabId } from "@/components/BriefView";
+import { Compare, Features, Footer, HowItWorks, Meetings, RecentList, StatsStrip, type Meeting } from "@/components/HomeSections";
+import type { Preset } from "@/components/BriefForm";
 import { ResearchLedger, initialLedger, type LedgerState } from "@/components/ResearchLedger";
 import type { Brief, ProgressEvent } from "@/lib/types";
-import { Ring } from "@/components/charts";
 import { defaultProfile, Profile } from "@/lib/startup-profile";
 
 type View =
   | { kind: "idle" }
   | { kind: "running"; investor: string; firm: string }
-  | { kind: "done"; brief: Brief }
+  | { kind: "done"; brief: Brief; tab?: TabId }
   | { kind: "error"; message: string; investor: string; firm: string };
 
 const RECENT_KEY = "supahealth:recent-briefs-v2";
 const PROFILE_KEY = "supahealth:profile";
+const MEETINGS_KEY = "supahealth:meetings";
+
+function loadMeetings(): Meeting[] {
+  try { return JSON.parse(localStorage.getItem(MEETINGS_KEY) || "[]"); } catch { return []; }
+}
 
 function loadProfile(): Profile {
   try {
@@ -30,7 +36,7 @@ function loadRecent(): Brief[] {
 }
 function saveRecent(b: Brief) {
   try {
-    const list = [b, ...loadRecent().filter((x) => x.meta.generatedAt !== b.meta.generatedAt)].slice(0, 6);
+    const list = [b, ...loadRecent().filter((x) => x.meta.generatedAt !== b.meta.generatedAt)].slice(0, 12);
     localStorage.setItem(RECENT_KEY, JSON.stringify(list));
   } catch {}
 }
@@ -40,14 +46,43 @@ export default function Home() {
   const [ledger, setLedger] = useState<LedgerState>(initialLedger);
   const [recent, setRecent] = useState<Brief[]>([]);
   const [profile, setProfile] = useState<Profile>(defaultProfile);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [homeTab, setHomeTab] = useState<"overview" | "recent" | "meetings" | "compare">("overview");
+  const [drawer, setDrawer] = useState(false);
+  const [preset, setPreset] = useState<Preset | null>(null);
 
-  useEffect(() => { setRecent(loadRecent()); setProfile(loadProfile()); }, []);
+  useEffect(() => { setRecent(loadRecent()); setProfile(loadProfile()); setMeetings(loadMeetings()); }, []);
+  useEffect(() => { window.scrollTo({ top: 0 }); }, [view.kind]);
+  useEffect(() => {
+    if (!drawer) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setDrawer(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawer]);
 
   function saveProfile(p: Profile) {
     setProfile(p);
     try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch {}
   }
-  useEffect(() => { window.scrollTo({ top: 0 }); }, [view.kind]);
+  function saveMeetings(list: Meeting[]) {
+    setMeetings(list);
+    try { localStorage.setItem(MEETINGS_KEY, JSON.stringify(list)); } catch {}
+  }
+  function removeBrief(b: Brief) {
+    const list = loadRecent().filter((x) => x.meta.generatedAt !== b.meta.generatedAt);
+    try { localStorage.setItem(RECENT_KEY, JSON.stringify(list)); } catch {}
+    setRecent(list);
+  }
+  function goHome(tab: typeof homeTab = "overview") {
+    setView({ kind: "idle" });
+    setHomeTab(tab);
+    setTimeout(() => document.getElementById("home-tabs")?.scrollIntoView({ behavior: "smooth" }), 60);
+  }
+  function prepareFromMeeting(investor: string, firm: string) {
+    setHomeTab("overview");
+    setPreset({ investor, firm, nonce: Date.now() });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
 
   function apply(e: ProgressEvent) {
     if (e.type === "stage") {
@@ -99,21 +134,47 @@ export default function Home() {
     }
   }
 
+  const upcoming = meetings.filter((m) => new Date(m.when).getTime() > Date.now()).length;
+  const HOME_TABS = [
+    { id: "overview" as const, label: "Overview" },
+    { id: "recent" as const, label: "Recent briefs", count: recent.length },
+    { id: "meetings" as const, label: "Meetings", count: upcoming },
+    { id: "compare" as const, label: "Compare investors", count: recent.length >= 2 ? recent.length : 0 },
+  ];
+
   return (
     <div className="shell">
       <header className="topbar no-print">
-        <button className="topbar-home" onClick={() => setView({ kind: "idle" })} aria-label="Start a new brief">
+        <button className="topbar-home" onClick={() => goHome()} aria-label="Go to the home page">
           <Logo />
         </button>
         <div className="topbar-right">
           <span className="live-pill"><span className="live-dot" aria-hidden="true" />Live web research</span>
-          <span className="avatar-sm" aria-hidden="true">{profile.founderName.slice(0, 1)}</span>
-          <span className="topbar-who strong">{profile.founderName}&apos;s workspace</span>
+          <button className="workspace-btn" onClick={() => setDrawer(true)} aria-haspopup="dialog">
+            <span className="avatar-sm" aria-hidden="true">{profile.founderName.slice(0, 1)}</span>
+            <span className="topbar-who strong">{profile.founderName}&apos;s workspace</span>
+            <span className="caret" aria-hidden="true" />
+          </button>
         </div>
       </header>
 
+      {drawer && (
+        <div className="drawer-scrim no-print" onClick={() => setDrawer(false)}>
+          <div className="drawer" role="dialog" aria-modal="true" aria-label="Edit workspace profile" onClick={(e) => e.stopPropagation()}>
+            <div className="drawer-head">
+              <div className="drawer-id">
+                <span className="avatar-lg">{profile.founderName.slice(0, 1)}</span>
+                <div><strong>{profile.founderName}&apos;s workspace</strong><small>{profile.company}, {profile.stage}, raising ₹{profile.raiseAmountCr} Cr</small></div>
+              </div>
+              <button className="drawer-x" onClick={() => setDrawer(false)} aria-label="Close">×</button>
+            </div>
+            <ProfilePanel profile={profile} onSave={saveProfile} startEditing onClose={() => setDrawer(false)} />
+          </div>
+        </div>
+      )}
+
       {view.kind === "done" ? (
-        <BriefView brief={view.brief} onNew={() => setView({ kind: "idle" })} />
+        <BriefView key={view.brief.meta.generatedAt + (view.tab ?? "")} brief={view.brief} initialTab={view.tab} onNew={() => goHome()} />
       ) : view.kind === "running" ? (
         <>
           <section className="hero hero-run"><div className="hero-inner"><p className="hero-kicker">Researching across the live web</p></div></section>
@@ -132,7 +193,7 @@ export default function Home() {
                   Enter an investor and their firm. Get a sourced brief on their recent deals, what they
                   believe, how they&apos;ll compare you to their portfolio, your odds, and how to open.
                 </p>
-                <BriefForm onSubmit={run} />
+                <BriefForm onSubmit={run} preset={preset} />
                 {view.kind === "error" && (
                   <div className="alert" role="alert">
                     <strong>The brief for {view.investor} couldn&apos;t be prepared.</strong>
@@ -145,38 +206,61 @@ export default function Home() {
             </div>
           </section>
 
-          <main className="main">
-            <div className="features">
-              {[
-                ["Odds", "Fit index and term-sheet probability from 8 weighted factors", "f-indigo"],
-                ["Portfolio", "Deals in the last 90 days and comparable brands, with scale", "f-teal"],
-                ["Person", "Background, defining bets and a little-known fact", "f-amber"],
-                ["Playbook", "Hooks, talking points, warm-intro paths and objections", "f-pink"],
-              ].map(([t, d, c]) => (
-                <div key={t} className={`feature ${c}`}><span className="feature-dot" /><strong>{t}</strong><p>{d}</p></div>
+          <nav className="tabs no-print" id="home-tabs" role="tablist" aria-label="Workspace">
+            <div className="tabs-inner">
+              {HOME_TABS.map((t) => (
+                <button key={t.id} role="tab" aria-selected={homeTab === t.id} className={`tab ${homeTab === t.id ? "is-active" : ""}`} onClick={() => setHomeTab(t.id)}>
+                  {t.label}{t.count ? <span className="tab-count">{t.count}</span> : null}
+                </button>
               ))}
             </div>
+          </nav>
 
-            {recent.length > 0 && (
-              <section className="recent">
-                <h2 className="section-title first">Recent briefs</h2>
-                <div className="recent-grid">
-                  {recent.map((b) => (
-                    <button key={b.meta.generatedAt} className="recent-card" onClick={() => setView({ kind: "done", brief: b })}>
-                      <span className="recent-ring"><Ring value={b.prediction.index} size={48} stroke={5} label="Fit index" /></span>
-                      <span className="recent-text">
-                        <strong>{b.investor.name}</strong>
-                        <span>{b.investor.firm}</span>
-                        <small>{new Date(b.meta.generatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}, {b.prediction.probability}% term-sheet odds</small>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
+          <main className="main">
+            {homeTab === "overview" && (
+              <div className="tabpanel is-active">
+                <StatsStrip briefs={recent} meetings={meetings} />
+                <h2 className="section-title">What&apos;s in every brief <span className="muted">click to see it on your latest brief</span></h2>
+                <Features latest={recent[0]} onOpen={(b, tab) => setView({ kind: "done", brief: b, tab })} />
+                <h2 className="section-title">How it works</h2>
+                <HowItWorks />
+                {recent.length > 0 && (
+                  <>
+                    <h2 className="section-title">Latest briefs <button className="link-btn" onClick={() => setHomeTab("recent")}>See all {recent.length}</button></h2>
+                    <RecentList briefs={recent.slice(0, 3)} onOpen={(b) => setView({ kind: "done", brief: b })} onRemove={removeBrief} />
+                  </>
+                )}
+              </div>
+            )}
+            {homeTab === "recent" && (
+              <div className="tabpanel is-active">
+                <h2 className="section-title first">Recent briefs <span className="muted">saved in this browser</span></h2>
+                <RecentList briefs={recent} onOpen={(b) => setView({ kind: "done", brief: b })} onRemove={removeBrief} />
+              </div>
+            )}
+            {homeTab === "meetings" && (
+              <div className="tabpanel is-active">
+                <h2 className="section-title first">This week&apos;s meetings <span className="muted">prepare each brief the day before</span></h2>
+                <Meetings
+                  meetings={meetings} briefs={recent}
+                  onAdd={(m) => saveMeetings([...meetings, m])}
+                  onRemove={(id) => saveMeetings(meetings.filter((m) => m.id !== id))}
+                  onPrepare={prepareFromMeeting}
+                  onOpen={(b) => setView({ kind: "done", brief: b })}
+                />
+              </div>
+            )}
+            {homeTab === "compare" && (
+              <div className="tabpanel is-active">
+                <h2 className="section-title first">Compare investors <span className="muted">decide where to spend your time</span></h2>
+                <Compare briefs={recent} onOpen={(b) => setView({ kind: "done", brief: b })} />
+              </div>
             )}
           </main>
         </>
       )}
+
+      <Footer onTab={(t) => goHome(t as typeof homeTab)} />
     </div>
   );
 }

@@ -32,8 +32,9 @@ const GROUPS: { title: string; fields: Field[] }[] = [
   },
 ];
 
-export function ProfilePanel({ profile, onSave }: { profile: Profile; onSave: (p: Profile) => void }) {
-  const [editing, setEditing] = useState(false);
+export function ProfilePanel({ profile, onSave, startEditing, onClose }: { profile: Profile; onSave: (p: Profile) => void; startEditing?: boolean; onClose?: () => void }) {
+  const [editing, setEditingRaw] = useState(!!startEditing);
+  const setEditing = (v: boolean) => { setEditingRaw(v); if (!v) onClose?.(); };
   const [draft, setDraft] = useState<Profile>(profile);
   const [error, setError] = useState("");
 

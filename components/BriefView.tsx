@@ -36,7 +36,7 @@ const CONNECTION: Record<string, string> = {
 };
 const ROLE: Record<string, string> = { lead: "Could lead", "co-lead": "Could co-lead", follow: "Likely to follow", unlikely: "Unlikely to invest" };
 
-type TabId = "overview" | "odds" | "person" | "playbook" | "portfolio" | "market" | "sources";
+export type TabId = "overview" | "odds" | "person" | "playbook" | "portfolio" | "market" | "sources";
 
 function domainOf(s: { title: string; domain?: string; url: string }) {
   const t = s.title?.trim() ?? "";
@@ -45,8 +45,8 @@ function domainOf(s: { title: string; domain?: string; url: string }) {
   return "";
 }
 
-export function BriefView({ brief: b, onNew }: { brief: Brief; onNew: () => void }) {
-  const [tab, setTab] = useState<TabId>("overview");
+export function BriefView({ brief: b, onNew, initialTab }: { brief: Brief; onNew: () => void; initialTab?: TabId }) {
+  const [tab, setTab] = useState<TabId>(initialTab ?? "overview");
   const [copied, setCopied] = useState(false);
   const a = b.analysis;
   const p = b.prediction;
