@@ -40,7 +40,8 @@ function loadRecent(): Brief[] {
 }
 function saveRecent(b: Brief) {
   try {
-    const list = [b, ...loadRecent().filter((x) => x.meta.generatedAt !== b.meta.generatedAt)].slice(0, 12);
+    const key = (x: Brief) => `${x.investor.name}|${x.investor.firm}`.toLowerCase().replace(/[^a-z|]/g, "");
+    const list = [b, ...loadRecent().filter((x) => x.meta.generatedAt !== b.meta.generatedAt && key(x) !== key(b))].slice(0, 12);
     localStorage.setItem(RECENT_KEY, JSON.stringify(list));
   } catch {}
 }
@@ -59,11 +60,13 @@ export default function Home() {
   const [preset, setPreset] = useState<Preset | null>(null);
   const [booking, setBooking] = useState("");
   const [theme, setTheme] = useState<"light" | "dark">("light");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setRecent(loadRecent()); setProfile(loadProfile()); setMeetings(loadMeetings());
     try { setBooking(localStorage.getItem(BOOKING_KEY) || ""); } catch {}
     setTheme(document.documentElement.dataset.theme === "dark" ? "dark" : "light");
+    setMounted(true);
   }, []);
   useEffect(() => { window.scrollTo({ top: 0 }); }, [view.kind, homeTab]);
   useEffect(() => {
@@ -231,7 +234,8 @@ export default function Home() {
       )}
 
       {view.kind === "done" ? (
-        <BriefView key={view.brief.meta.generatedAt + (view.tab ?? "")} brief={view.brief} initialTab={view.tab} onNew={() => goTab("dashboard")} />
+        <BriefView key={view.brief.meta.generatedAt + (view.tab ?? "")} brief={view.brief} initialTab={view.tab} onNew={() => goTab("dashboard")}
+          onRerun={() => run(view.brief.meta.input.investor, view.brief.meta.input.firm)} />
       ) : view.kind === "running" ? (
         <>
           <section className="hero hero-run"><div className="hero-inner"><p className="hero-kicker">Researching across the live web</p></div></section>
@@ -244,7 +248,7 @@ export default function Home() {
           <section className="hero hero-home">
             <div className="hero-inner home-grid">
               <div className="intro">
-                <p className="hero-kicker">Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {profile.founderName}</p>
+                <p className="hero-kicker">{mounted ? `Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, ${profile.founderName}` : "Pre-meeting investor intelligence"}</p>
                 <h1 className="headline">Know who&apos;s across the table.</h1>
                 <p className="dek">
                   Enter an investor and their firm. Get a sourced brief on their recent deals, what they
@@ -263,7 +267,7 @@ export default function Home() {
             </div>
           </section>
 
-          <main className="main">
+          {mounted && <main className="main">
             <GettingStarted hasMeetings={meetings.length > 0} hasBriefs={recent.length > 0} onLoadSamples={loadSamples}
               onTry={() => { setPreset({ investor: "Kanwaljit Singh", firm: "Fireside Ventures", nonce: Date.now() }); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
             <StatsStrip briefs={recent} meetings={meetings} />
@@ -284,7 +288,7 @@ export default function Home() {
             <Features latest={recent[0]} onOpen={(b, tab) => openBrief(b, tab)} />
             <h2 className="section-title">How it works</h2>
             <HowItWorks />
-          </main>
+          </main>}
         </>
       ) : (
         <>
@@ -294,7 +298,7 @@ export default function Home() {
               <p className="page-sub">{PAGE_HEAD[homeTab][1]}</p>
             </div>
           </section>
-          <main className="main">
+          {mounted && <main className="main">
             {homeTab === "briefs" && <RecentList briefs={recent} onOpen={(b) => openBrief(b)} onRemove={removeBrief} />}
             {homeTab === "meetings" && (
               <>
@@ -316,7 +320,7 @@ export default function Home() {
             )}
             {homeTab === "compare" && <Compare briefs={recent} onOpen={(b) => openBrief(b)} />}
             {homeTab === "directory" && <Directory briefs={recent} onPrepare={prepare} onOpen={(b) => openBrief(b)} />}
-          </main>
+          </main>}
         </>
       )}
 

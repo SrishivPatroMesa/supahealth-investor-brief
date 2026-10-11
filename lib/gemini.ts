@@ -1,7 +1,31 @@
 import { GoogleGenAI } from "@google/genai";
 import type { Source } from "./types";
 
-export const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+export const MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+
+/**
+ * Newer Gemini models think before answering, which slows grounded research.
+ * We ask for a low thinking level (override with GEMINI_THINKING), and if the
+ * model rejects the setting we drop it and retry once without it.
+ */
+const THINKING = (process.env.GEMINI_THINKING || "low").toLowerCase();
+let thinkingOk = THINKING !== "off";
+function thinkingConfig(level?: string) {
+  if (!thinkingOk) return {};
+  return { thinkingConfig: { thinkingLevel: (level || THINKING) as never } };
+}
+async function generate(params: { model: string; contents: string; config: Record<string, unknown> }, level?: string) {
+  try {
+    return await gemini().models.generateContent({ ...params, config: { ...params.config, ...thinkingConfig(level) } });
+  } catch (e) {
+    const msg = String((e as Error)?.message ?? e);
+    if (thinkingOk && /thinking/i.test(msg) && /400|INVALID_ARGUMENT|not supported|unknown/i.test(msg)) {
+      thinkingOk = false;
+      return await gemini().models.generateContent(params);
+    }
+    throw e;
+  }
+}
 
 let client: GoogleGenAI | null = null;
 export function gemini(): GoogleGenAI {
@@ -90,11 +114,7 @@ export async function groundedResearch(
 
   const res = await withRetry(() =>
     withTimeout(
-      gemini().models.generateContent({
-        model: MODEL,
-        contents,
-        config: { tools, temperature: 0.2 },
-      }),
+      generate({ model: MODEL, contents, config: { tools, temperature: 0.2 } }),
       opts.timeoutMs ?? 50_000,
       opts.label ?? "Research call"
     )
@@ -151,7 +171,7 @@ export async function structuredCall<T = unknown>(
 ): Promise<T> {
   const res = await withRetry(() =>
     withTimeout(
-      gemini().models.generateContent({
+      generate({
         model: MODEL,
         contents: prompt,
         config: {

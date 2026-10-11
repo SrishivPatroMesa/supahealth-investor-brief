@@ -45,17 +45,17 @@ MATCH: <yes | no | unclear>`;
 }
 
 export function portfolioPrompt(c: Ctx): string {
-  return `Today is ${c.today}. Research the portfolio activity of ${c.name} at ${c.firm}.
+  return `Today is ${c.today}. List the investments and exits announced by ${c.firm} (and by ${c.name}) between ${c.yearStart} and ${c.today}.
 
-PART A — last 90 days (${c.windowStart} to ${c.today}):
-Every new investment, follow-on and exit (acquisition, IPO, secondary, shutdown). For each: company, what it does, sector, round, amount, announcement date, and whether ${c.name} personally led it or joined the board.
-If none, say so clearly and list the 3 most recent deals with dates.
+Search news such as "${c.firm} leads", "${c.firm} invests", "${c.firm} backed", "raises funding ${c.firm}", and the firm's own news or portfolio page.
 
-PART B — last 12 months (${c.yearStart} to ${c.today}):
-A compact list of every deal by ${c.firm} you can find, one per line as: YYYY-MM | company | sector | round | amount.
-Also give the typical cheque size in these deals, with examples.
+Write one deal per line, newest first, in exactly this format:
+YYYY-MM-DD | company | what it does | sector | round | amount | new, follow-on or exit | led by ${c.name}? yes/no/unknown
+Use YYYY-MM when the day is unknown. Include every deal you can find, up to 25.
+Then one line: TYPICAL CHEQUE: <typical cheque size with examples>.
+If you find no deals in this period, write "NO DEALS FOUND" and list the 3 most recent deals you can find with dates.
 
-${RULES}`;
+Report only what sources say. Never guess amounts or dates.`;
 }
 
 export function thesisPrompt(c: Ctx): string {

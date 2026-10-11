@@ -161,6 +161,7 @@ export type Brief = BriefCore & {
     revenueCr: number;
     input: { investor: string; firm: string };
     tracks: { id: TrackId; ok: boolean; sources: number }[];
+    identityFailed?: boolean;
     removed: { stale: number; uncited: number };
   };
 };

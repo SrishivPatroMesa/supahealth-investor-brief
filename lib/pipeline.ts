@@ -57,6 +57,7 @@ export async function runBrief(
   let name = inv.name || inv.raw;
   let firmName = firm.name;
   let match = "unclear";
+  let identityFailed = false;
 
   const runIdentity = async (timeoutMs: number) => {
     emit({ type: "stage", stage: "identity", status: "active" });
@@ -78,6 +79,8 @@ export async function runBrief(
       });
       return { resolvedName, resolvedFirm };
     } catch (e) {
+      console.error("[brief] identity check failed:", (e as Error).message);
+      identityFailed = true;
       emit({ type: "stage", stage: "identity", status: "error", detail: (e as Error).message });
       return { resolvedName: "", resolvedFirm: "" };
     }
@@ -117,6 +120,7 @@ export async function runBrief(
         trackMeta.push({ id: t.id, ok: true, sources: r.sourceIds.length });
         emit({ type: "track", track: t.id, status: "done", sources: r.sourceIds.length });
       } catch (e) {
+        console.error(`[brief] ${t.id} track failed:`, (e as Error).message);
         trackMeta.push({ id: t.id, ok: false, sources: 0 });
         emit({ type: "track", track: t.id, status: "error", detail: (e as Error).message });
       }
@@ -191,6 +195,7 @@ export async function runBrief(
       revenueCr: profile.revenueCr,
       input,
       tracks: trackMeta,
+      identityFailed,
       removed,
     },
   };

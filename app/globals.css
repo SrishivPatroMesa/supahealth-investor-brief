@@ -412,6 +412,8 @@ code { font-size: 0.88em; background: var(--indigo-50); padding: 1px 5px; border
 .comp-stats { margin-top: 12px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .comp-stats div { padding: 8px 10px; background: var(--bg); border-radius: var(--r-sm); font-size: 13px; font-weight: 700; overflow-wrap: anywhere; }
 .comp-stats span { display: block; font-size: 11px; font-weight: 500; color: var(--ink-3); }
+.comp-scale { margin-top: 10px; font-size: 13.5px; font-weight: 600; }
+.comp-scale span { display: inline-block; margin-right: 8px; font-size: 11.5px; font-weight: 600; color: var(--ink-3); }
 .vs { margin-top: 10px; padding: 10px 12px; border-radius: var(--r-sm); background: var(--indigo-50); font-size: 13.5px; line-height: 1.5; }
 .vs span { display: block; font-size: 12px; font-weight: 700; color: var(--indigo); }
 
@@ -699,6 +701,19 @@ code { font-size: 0.88em; background: var(--indigo-50); padding: 1px 5px; border
 a.btn { text-decoration: none; }
 .src-badge { margin-left: 8px; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 99px; background: var(--teal-50); color: #0b8f80; vertical-align: 2px; }
 .meet-actions { flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---------- Partial research warning ---------- */
+.partial { background: var(--amber-50); border-bottom: 1px solid rgba(245, 158, 11, 0.35); }
+.partial-inner { max-width: 1240px; margin: 0 auto; padding: 10px clamp(16px, 4vw, 40px); display: flex; align-items: center; gap: 12px; }
+.partial-inner p { flex: 1; font-size: 13.5px; color: #7a4a00; }
+.partial-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--amber); flex: none; }
+:root[data-theme="dark"] .partial-inner p { color: #fbd38d; }
+.coverage { margin-top: 16px; display: flex; flex-wrap: wrap; gap: 6px; }
+.cov-chip { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 99px; }
+.cov-chip.ok { background: var(--emerald-50); color: #0b7a47; }
+.cov-chip.bad { background: var(--amber-50); color: #9a5b00; }
+:root[data-theme="dark"] .cov-chip.ok { color: #6ee7a8; }
+:root[data-theme="dark"] .cov-chip.bad { color: #fbbf4d; }
 
 /* ---------- Samples and getting started ---------- */
 .src-badge.sample { background: var(--amber-50); color: #9a5b00; }

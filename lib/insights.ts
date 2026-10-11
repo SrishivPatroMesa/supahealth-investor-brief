@@ -51,7 +51,7 @@ export function nextActions(briefs: Brief[], meetings: CalMeeting[], raise: numb
     out.push({ tone: "indigo", title: `Book a meeting with ${b.investor.name}`, detail: `${b.prediction.band} fit (${b.prediction.index}) and no meeting planned yet.`, cta: { label: "Plan", kind: "meetings" } });
   }
   const cov = roundCoverage(briefs, raise);
-  if (cov.expected < raise) {
+  if (briefs.length > 0 && cov.expected < raise) {
     out.push({ tone: "indigo", title: "Widen the pipeline", detail: `Expected commitments are ₹${cov.expected.toFixed(1)} Cr of ₹${raise} Cr. Add more consumer-focused investors.`, cta: { label: "Directory", kind: "directory" } });
   }
   return out.slice(0, 6);

@@ -45,7 +45,7 @@ function domainOf(s: { title: string; domain?: string; url: string }) {
   return "";
 }
 
-export function BriefView({ brief: b, onNew, initialTab }: { brief: Brief; onNew: () => void; initialTab?: TabId }) {
+export function BriefView({ brief: b, onNew, initialTab, onRerun }: { brief: Brief; onNew: () => void; initialTab?: TabId; onRerun?: () => void }) {
   const [tab, setTab] = useState<TabId>(initialTab ?? "overview");
   const [copied, setCopied] = useState(false);
   const a = b.analysis;
@@ -61,6 +61,14 @@ export function BriefView({ brief: b, onNew, initialTab }: { brief: Brief; onNew
   const raise = b.meta.raiseAmountCr ?? 10;
   const flags = b.context.filter((c) => c.severity !== "info");
   const firstName = b.investor.name.split(" ")[0];
+  const TRACK_LABEL: Record<string, string> = {
+    portfolio: "deals and exits", thesis: "public thesis", context: "context and red flags",
+    comparables: "comparable brands", person: "background", network: "connections",
+  };
+  const failed = [
+    ...(b.meta.identityFailed ? ["identity check"] : []),
+    ...b.meta.tracks.filter((t) => !t.ok).map((t) => TRACK_LABEL[t.id] ?? t.id),
+  ];
 
   // Citation chips jump to the Sources tab.
   useEffect(() => {
@@ -154,6 +162,16 @@ export function BriefView({ brief: b, onNew, initialTab }: { brief: Brief; onNew
           </div>
         </div>
       </header>
+
+      {failed.length > 0 && (
+        <div className="partial no-print" role="status">
+          <div className="partial-inner">
+            <span className="partial-dot" />
+            <p><strong>Some research didn&apos;t finish in time:</strong> {failed.join(", ")}. Those sections may be incomplete; running the brief again usually fills them in.</p>
+            {onRerun && <button className="btn btn-sm btn-primary" onClick={onRerun}>Run again</button>}
+          </div>
+        </div>
+      )}
 
       {/* ---------------- Tabs ---------------- */}
       <nav className="tabs no-print" role="tablist" aria-label="Brief sections">
@@ -418,7 +436,7 @@ export function BriefView({ brief: b, onNew, initialTab }: { brief: Brief; onNew
             </div>
           ) : <p className="empty">No verified investments or exits in the last 90 days. A quiet period can mean they are between funds; ask about their deployment pace.</p>}
 
-          <h3 className="section-title">Comparable brands <span className="muted">how they&apos;ll benchmark {company}</span></h3>
+          <h3 className="section-title">Comparable brands <span className="muted">brands they&apos;ve backed, and how they&apos;ll benchmark {company}</span></h3>
           {a.comparables.length ? (
             <div className="grid">
               {(useRevenue ? revRows.length : fundRows.length) > 0 && (
@@ -440,11 +458,13 @@ export function BriefView({ brief: b, onNew, initialTab }: { brief: Brief; onNew
                     <div><strong>{c.company}</strong><p className="tile-sub">{[c.whatTheyDo, c.invested && `backed ${c.invested}`].filter(Boolean).join(", ")}</p></div>
                     <span className={`traj traj-${c.trajectory}`}>{TRAJECTORY[c.trajectory]}</span>
                   </div>
-                  <div className="comp-stats">
-                    <div><span>Revenue</span>{c.revenueCr ? `₹${c.revenueCr} Cr` : "—"}</div>
-                    <div><span>Funding</span>{c.fundingCr ? `₹${c.fundingCr} Cr` : "—"}</div>
-                    <div><span>Scale</span>{c.scale || "—"}</div>
-                  </div>
+                  {c.revenueCr || c.fundingCr ? (
+                    <div className="comp-stats">
+                      <div><span>Revenue</span>{c.revenueCr ? `₹${c.revenueCr} Cr` : "Not public"}</div>
+                      <div><span>Funding</span>{c.fundingCr ? `₹${c.fundingCr} Cr` : "Not public"}</div>
+                      <div><span>Scale</span>{c.scale || "—"}</div>
+                    </div>
+                  ) : c.scale ? <p className="comp-scale"><span>Scale</span>{c.scale}</p> : null}
                   {c.trajectoryNote && <p className="body-s">{c.trajectoryNote} <Cites ids={c.sourceIds} /></p>}
                   {c.vsUs && <p className="vs"><span>Versus {company}</span>{c.vsUs}</p>}
                 </div>
@@ -505,6 +525,11 @@ export function BriefView({ brief: b, onNew, initialTab }: { brief: Brief; onNew
                 </a>
               );
             })}
+          </div>
+          <div className="coverage">
+            {b.meta.tracks.map((t) => (
+              <span key={t.id} className={`cov-chip ${t.ok ? "ok" : "bad"}`}>{t.ok ? "✓" : "!"} {TRACK_LABEL[t.id] ?? t.id}{t.ok ? `, ${t.sources} sources` : ", didn't finish"}</span>
+            ))}
           </div>
           <p className="method">
             Researched live with Google Search through {b.meta.model} across {b.meta.tracks.length} research tracks.{" "}

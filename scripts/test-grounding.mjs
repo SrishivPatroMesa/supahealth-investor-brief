@@ -3,7 +3,7 @@
 import { GoogleGenAI } from "@google/genai";
 
 const key = process.env.GEMINI_API_KEY;
-const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+const model = process.env.GEMINI_MODEL || "gemini-3.8-flash";
 if (!key) { console.error("✗ GEMINI_API_KEY missing in .env.local"); process.exit(1); }
 
 const ai = new GoogleGenAI({ apiKey: key });
