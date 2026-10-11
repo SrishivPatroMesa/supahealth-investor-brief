@@ -1,0 +1,26 @@
+{
+  "name": "supahealth-investor-brief",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pre-meeting investor brief agent for SupaHealth, powered by Gemini Flash with live Google Search grounding.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test:gemini": "node --env-file=.env.local scripts/test-grounding.mjs"
+  },
+  "dependencies": {
+    "@google/genai": "^2.28.0",
+    "next": "^15.5.27",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": { "node": ">=20" }
+}
