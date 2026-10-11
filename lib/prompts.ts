@@ -178,7 +178,7 @@ Guidance:
 - "identity.confidence": high if clearly confirmed at this firm, medium if likely, low if unclear or contradicted.
 - "portfolioActivity": only deals announced inside the 90-day window.
 - "context.severity": "flag" could derail the meeting, "watch" handle carefully, "info" background.
-- "fit.overlaps": where the investor and the startup overlap; "fit.conflicts": competing brands in their portfolio.
+- "fit.overlaps": where the investor and the startup overlap; "fit.conflicts": brands in their current or past portfolio that compete with or sit close to the startup (protein, sports nutrition, protein snacks, supplements), using all notes.
 - "talkingPoints": exactly 3. Each connects a specific fact about this investor to a specific fact about the startup. "opener" is a sentence the founder can say in the room.
 - "objections": exactly 3 likely pushbacks with crisp answers using the startup's real numbers.`;
 }
@@ -206,7 +206,7 @@ Produce:
 
 3. "cheque.distribution": probability (0–100) that their cheque into this round falls in each bucket: ${CHEQUE_BUCKETS.map((b) => `"${b}"`).join(", ")}. Base it on their actual past cheques. "typical" is their typical cheque in words; "rationale" explains in one sentence.
 
-4. "comparables": up to 6 brands from their portfolio most comparable to ${p.company}. revenueCr and fundingCr are numbers in ₹ Cr (use 0 if unknown). "scale" in words. "trajectory": scaling, steady, struggling, exited, shut-down or unknown. "vsUs": one sentence comparing that company to ${p.company} (stage, scale, positioning) — what the investor will likely benchmark against.
+4. "comparables": up to 6 brands from their portfolio most comparable to ${p.company}. Look across ALL the notes (comparable brands, portfolio, the person's key bets, context), not just one section. Past investments that were exited, acquired or shut down count too; they are often the benchmark the investor uses. revenueCr and fundingCr are numbers in ₹ Cr (use 0 if unknown). "scale" in words. "trajectory": scaling, steady, struggling, exited, shut-down or unknown. "vsUs": one sentence comparing that company to ${p.company} (stage, scale, positioning) — what the investor will likely benchmark against.
 
 5. "person": "background" facts (education, career); "keyBets" (their most important past investments with outcome and why it matters for this pitch); "insights" (how they think and decide, useful for the pitch).
 

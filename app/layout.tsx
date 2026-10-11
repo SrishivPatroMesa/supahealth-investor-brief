@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: "Sourced pre-meeting briefs on investors, prepared for SupaHealth.",
 };
 
-export const viewport: Viewport = { themeColor: "#F3F5F2" };
+export const viewport: Viewport = { themeColor: "#0B1330" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

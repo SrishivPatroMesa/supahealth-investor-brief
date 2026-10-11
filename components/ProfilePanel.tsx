@@ -70,9 +70,9 @@ export function ProfilePanel({ profile, onSave }: { profile: Profile; onSave: (p
           ))}
           {error && <p className="perror" role="alert">{error}</p>}
           <div className="pactions">
-            <button type="submit" className="btn btn-light">Save profile</button>
-            <button type="button" className="btn btn-dark-ghost" onClick={() => { setDraft(profile); setEditing(false); }}>Cancel</button>
-            <button type="button" className="btn btn-dark-ghost" onClick={() => setDraft(defaultProfile)}>Reset to default</button>
+            <button type="submit" className="btn btn-sm btn-primary">Save profile</button>
+            <button type="button" className="btn btn-sm btn-quiet" onClick={() => { setDraft(profile); setEditing(false); }}>Cancel</button>
+            <button type="button" className="btn btn-sm btn-quiet" onClick={() => setDraft(defaultProfile)}>Reset to default</button>
           </div>
         </form>
       </aside>
@@ -90,7 +90,7 @@ export function ProfilePanel({ profile, onSave }: { profile: Profile; onSave: (p
         <div><dt>Founder</dt><dd>{profile.founderName}: {profile.founderEducation}</dd></div>
         <div><dt>Network</dt><dd>{profile.founderNetwork}</dd></div>
       </dl>
-      <button className="btn btn-light" onClick={() => { setDraft(profile); setEditing(true); }}>Edit profile</button>
+      <button className="btn btn-sm btn-quiet" onClick={() => { setDraft(profile); setEditing(true); }}>Edit profile</button>
       <p className="profile-note">The founder details power the connections section. Use your real background for the best matches.</p>
     </aside>
   );

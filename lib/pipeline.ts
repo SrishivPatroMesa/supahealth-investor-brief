@@ -50,32 +50,50 @@ export async function runBrief(
     ].join(" at "),
   });
 
-  // 1 — identity
-  emit({ type: "stage", stage: "identity", status: "active" });
+  // 1 — identity, and 2 — six research tracks.
+  // When a plain name is given, identity runs alongside the tracks to save time.
+  // When the investor is a URL, identity runs first so the tracks get a real name.
   let identityText = "";
   let name = inv.name || inv.raw;
   let firmName = firm.name;
   let match = "unclear";
-  try {
-    const r = await groundedResearch(identityPrompt(inv, firm, ctxBase.today), registry, {
-      urls: [inv.kind === "url" ? inv.url : undefined, firm.url].filter(Boolean) as string[],
-      label: "Identity check",
-      timeoutMs: 25_000,
-    });
-    identityText = r.text;
-    name = readLine(r.text, "RESOLVED_NAME") || name;
-    firmName = readLine(r.text, "RESOLVED_FIRM") || firmName;
-    match = readLine(r.text, "MATCH").toLowerCase() || "unclear";
-    emit({
-      type: "stage", stage: "identity", status: "done",
-      detail: match === "yes" ? `Confirmed: ${name}, ${firmName}` : `${name}, ${firmName} (match ${match})`,
-    });
-  } catch (e) {
-    emit({ type: "stage", stage: "identity", status: "error", detail: (e as Error).message });
+
+  const runIdentity = async (timeoutMs: number) => {
+    emit({ type: "stage", stage: "identity", status: "active" });
+    try {
+      const r = await groundedResearch(identityPrompt(inv, firm, ctxBase.today), registry, {
+        urls: [inv.kind === "url" ? inv.url : undefined, firm.url].filter(Boolean) as string[],
+        label: "Identity check",
+        timeoutMs,
+      });
+      identityText = r.text;
+      const resolvedName = readLine(r.text, "RESOLVED_NAME");
+      const resolvedFirm = readLine(r.text, "RESOLVED_FIRM");
+      match = readLine(r.text, "MATCH").toLowerCase() || "unclear";
+      emit({
+        type: "stage", stage: "identity", status: "done",
+        detail: match === "yes"
+          ? `Confirmed: ${resolvedName || name}, ${resolvedFirm || firmName}`
+          : `${resolvedName || name}, ${resolvedFirm || firmName} (match ${match})`,
+      });
+      return { resolvedName, resolvedFirm };
+    } catch (e) {
+      emit({ type: "stage", stage: "identity", status: "error", detail: (e as Error).message });
+      return { resolvedName: "", resolvedFirm: "" };
+    }
+  };
+
+  const parallelIdentity = inv.kind === "name" && firm.kind === "name";
+  let identityPromise: Promise<{ resolvedName: string; resolvedFirm: string }> | null = null;
+  if (parallelIdentity) {
+    identityPromise = runIdentity(45_000);
+  } else {
+    const r = await runIdentity(20_000);
+    name = r.resolvedName || name;
+    firmName = r.resolvedFirm || firmName;
   }
   if (!name || !firmName) throw new Error("Could not work out who the investor is. Try entering their full name.");
 
-  // 2 — research tracks in parallel
   emit({ type: "stage", stage: "research", status: "active" });
   const ctx: Ctx = { name, firm: firmName, ...ctxBase };
   const tracks: { id: TrackId; prompt: string; urls?: string[] }[] = [
@@ -88,12 +106,13 @@ export async function runBrief(
   ];
   const notes: Record<TrackId, string> = { portfolio: "", thesis: "", context: "", comparables: "", person: "", network: "" };
   const trackMeta: Brief["meta"]["tracks"] = [];
+  const trackTimeout = parallelIdentity ? 65_000 : 55_000;
 
-  await Promise.all(
-    tracks.map(async (t) => {
+  await Promise.all([
+    ...tracks.map(async (t) => {
       emit({ type: "track", track: t.id, status: "active" });
       try {
-        const r = await groundedResearch(t.prompt, registry, { urls: t.urls, label: `${t.id} research`, timeoutMs: 45_000 });
+        const r = await groundedResearch(t.prompt, registry, { urls: t.urls, label: `${t.id} research`, timeoutMs: trackTimeout });
         notes[t.id] = r.text;
         trackMeta.push({ id: t.id, ok: true, sources: r.sourceIds.length });
         emit({ type: "track", track: t.id, status: "done", sources: r.sourceIds.length });
@@ -101,8 +120,16 @@ export async function runBrief(
         trackMeta.push({ id: t.id, ok: false, sources: 0 });
         emit({ type: "track", track: t.id, status: "error", detail: (e as Error).message });
       }
-    })
-  );
+    }),
+    identityPromise ?? Promise.resolve(),
+  ]);
+  if (identityPromise) {
+    const r = await identityPromise;
+    name = r.resolvedName || name;
+    firmName = r.resolvedFirm || firmName;
+    ctx.name = name;
+    ctx.firm = firmName;
+  }
   if (trackMeta.every((t) => !t.ok)) {
     throw new Error("All research tracks failed. Check the Gemini API key, quota and model name.");
   }
@@ -118,8 +145,8 @@ export async function runBrief(
   const allNotes = { ...factNotes, "the person": notes.person, "connections to the founder": notes.network };
 
   const [rawBrief, rawAnalysis] = await Promise.all([
-    structuredCall(briefPrompt(ctx, profileText, factNotes, match), briefJsonSchema, { system: SYNTHESIS_SYSTEM, timeoutMs: 45_000 }),
-    structuredCall(analysisPrompt(ctx, profile, profileText, allNotes, match), analysisJsonSchema, { system: SYNTHESIS_SYSTEM, timeoutMs: 45_000 })
+    structuredCall(briefPrompt(ctx, profileText, factNotes, match), briefJsonSchema, { system: SYNTHESIS_SYSTEM, timeoutMs: 42_000 }),
+    structuredCall(analysisPrompt(ctx, profile, profileText, allNotes, match), analysisJsonSchema, { system: SYNTHESIS_SYSTEM, timeoutMs: 42_000 })
       .catch((e) => { emit({ type: "stage", stage: "synthesis", status: "active", detail: `Analysis retry skipped: ${(e as Error).message}` }); return null; }),
   ]);
   const core = BriefCore.safeParse(rawBrief);

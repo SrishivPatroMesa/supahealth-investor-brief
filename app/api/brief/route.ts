@@ -3,7 +3,7 @@ import type { ProgressEvent } from "@/lib/types";
 import { resolveProfile } from "@/lib/startup-profile";
 
 export const runtime = "nodejs";
-export const maxDuration = 120; // seconds; the brief must finish within 2 minutes
+export const maxDuration = 150; // safety ceiling; the pipeline is budgeted to finish in under 2 minutes
 export const dynamic = "force-dynamic";
 
 /** Streams progress as newline-delimited JSON, ending with the brief. */

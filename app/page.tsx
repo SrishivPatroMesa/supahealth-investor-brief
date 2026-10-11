@@ -6,6 +6,7 @@ import { ProfilePanel } from "@/components/ProfilePanel";
 import { BriefView } from "@/components/BriefView";
 import { ResearchLedger, initialLedger, type LedgerState } from "@/components/ResearchLedger";
 import type { Brief, ProgressEvent } from "@/lib/types";
+import { Ring } from "@/components/charts";
 import { defaultProfile, Profile } from "@/lib/startup-profile";
 
 type View =
@@ -104,59 +105,78 @@ export default function Home() {
         <button className="topbar-home" onClick={() => setView({ kind: "idle" })} aria-label="Start a new brief">
           <Logo />
         </button>
-        <span className="topbar-who">Priya&apos;s workspace</span>
+        <div className="topbar-right">
+          <span className="live-pill"><span className="live-dot" aria-hidden="true" />Live web research</span>
+          <span className="avatar-sm" aria-hidden="true">{profile.founderName.slice(0, 1)}</span>
+          <span className="topbar-who strong">{profile.founderName}&apos;s workspace</span>
+        </div>
       </header>
 
-      <main className="main">
-        {view.kind === "done" ? (
-          <BriefView brief={view.brief} onNew={() => setView({ kind: "idle" })} />
-        ) : view.kind === "running" ? (
-          <div className="run">
+      {view.kind === "done" ? (
+        <BriefView brief={view.brief} onNew={() => setView({ kind: "idle" })} />
+      ) : view.kind === "running" ? (
+        <>
+          <section className="hero hero-run"><div className="hero-inner"><p className="hero-kicker">Researching across the live web</p></div></section>
+          <main className="main run">
             <ResearchLedger state={ledger} investor={view.investor} firm={view.firm} />
-          </div>
-        ) : (
-          <div className="home">
-            <section className="intro">
-              <h1 className="headline">Know who&apos;s across the table.</h1>
-              <p className="dek">
-                Enter an investor and their firm. You get a sourced brief on their recent deals, what they
-                believe, how they compare you to their portfolio, your odds, and how to open with {profile.company}.
-              </p>
+          </main>
+        </>
+      ) : (
+        <>
+          <section className="hero hero-home">
+            <div className="hero-inner home-grid">
+              <div className="intro">
+                <p className="hero-kicker">Pre-meeting investor intelligence</p>
+                <h1 className="headline">Know who&apos;s across the table.</h1>
+                <p className="dek">
+                  Enter an investor and their firm. Get a sourced brief on their recent deals, what they
+                  believe, how they&apos;ll compare you to their portfolio, your odds, and how to open.
+                </p>
+                <BriefForm onSubmit={run} />
+                {view.kind === "error" && (
+                  <div className="alert" role="alert">
+                    <strong>The brief for {view.investor} couldn&apos;t be prepared.</strong>
+                    <p>{view.message}</p>
+                    <button className="btn btn-sm btn-quiet" onClick={() => run(view.investor, view.firm)}>Try again</button>
+                  </div>
+                )}
+              </div>
+              <ProfilePanel key={JSON.stringify(profile)} profile={profile} onSave={saveProfile} />
+            </div>
+          </section>
 
-              {view.kind === "error" && (
-                <div className="alert" role="alert">
-                  <strong>The brief for {view.investor} couldn&apos;t be prepared.</strong>
-                  <p>{view.message}</p>
-                  <button className="btn btn-quiet" onClick={() => run(view.investor, view.firm)}>Try again</button>
+          <main className="main">
+            <div className="features">
+              {[
+                ["Odds", "Fit index and term-sheet probability from 8 weighted factors", "f-indigo"],
+                ["Portfolio", "Deals in the last 90 days and comparable brands, with scale", "f-teal"],
+                ["Person", "Background, defining bets and a little-known fact", "f-amber"],
+                ["Playbook", "Hooks, talking points, warm-intro paths and objections", "f-pink"],
+              ].map(([t, d, c]) => (
+                <div key={t} className={`feature ${c}`}><span className="feature-dot" /><strong>{t}</strong><p>{d}</p></div>
+              ))}
+            </div>
+
+            {recent.length > 0 && (
+              <section className="recent">
+                <h2 className="section-title first">Recent briefs</h2>
+                <div className="recent-grid">
+                  {recent.map((b) => (
+                    <button key={b.meta.generatedAt} className="recent-card" onClick={() => setView({ kind: "done", brief: b })}>
+                      <span className="recent-ring"><Ring value={b.prediction.index} size={48} stroke={5} label="Fit index" /></span>
+                      <span className="recent-text">
+                        <strong>{b.investor.name}</strong>
+                        <span>{b.investor.firm}</span>
+                        <small>{new Date(b.meta.generatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}, {b.prediction.probability}% term-sheet odds</small>
+                      </span>
+                    </button>
+                  ))}
                 </div>
-              )}
-
-              <BriefForm onSubmit={run} />
-
-              {recent.length > 0 && (
-                <div className="recent">
-                  <h2 className="recent-title">Recent briefs</h2>
-                  <ul>
-                    {recent.map((b) => (
-                      <li key={b.meta.generatedAt}>
-                        <button onClick={() => setView({ kind: "done", brief: b })}>
-                          <span className="recent-name">{b.investor.name}</span>
-                          <span className="recent-firm">{b.investor.firm}</span>
-                          <span className="recent-fit">{b.prediction.index} fit index</span>
-                          <span className="recent-date">
-                            {new Date(b.meta.generatedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </section>
-            <ProfilePanel key={JSON.stringify(profile)} profile={profile} onSave={saveProfile} />
-          </div>
-        )}
-      </main>
+              </section>
+            )}
+          </main>
+        </>
+      )}
     </div>
   );
 }

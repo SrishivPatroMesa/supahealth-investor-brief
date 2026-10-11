@@ -38,10 +38,10 @@ export function BriefForm({
         />
       </label>
       <div className="form-foot">
-        <button className="btn btn-primary" type="submit" disabled={!ready || disabled}>
+        <button className="btn btn-primary btn-md" type="submit" disabled={!ready || disabled}>
           Prepare brief
         </button>
-        <span className="form-hint">Live research across six tracks, usually 60–90 seconds.</span>
+        <span className="form-hint">Six live research tracks, about 90 seconds.</span>
       </div>
     </form>
   );
