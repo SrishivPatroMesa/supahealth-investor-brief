@@ -700,6 +700,21 @@ a.btn { text-decoration: none; }
 .src-badge { margin-left: 8px; font-size: 10.5px; font-weight: 700; padding: 2px 7px; border-radius: 99px; background: var(--teal-50); color: #0b8f80; vertical-align: 2px; }
 .meet-actions { flex-wrap: wrap; justify-content: flex-end; }
 
+/* ---------- Samples and getting started ---------- */
+.src-badge.sample { background: var(--amber-50); color: #9a5b00; }
+.sample-card { background: linear-gradient(135deg, var(--surface) 55%, var(--amber-50)); }
+.start { margin-bottom: 14px; padding: 18px 20px; border-radius: var(--r-lg); border: 1px solid var(--line); background: linear-gradient(135deg, var(--indigo-50), var(--teal-50)); }
+.start-head { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+.start-head strong { font-size: 16px; }
+.start-head .muted { font-size: 13px; }
+.start-steps { margin-top: 14px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.start-steps li { display: grid; grid-template-columns: 30px 1fr; gap: 10px; padding: 14px; border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line); }
+.start-steps li.is-done { opacity: 0.7; }
+.start-n { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff; background: linear-gradient(135deg, var(--indigo), var(--teal)); }
+.start-steps li.is-done .start-n { background: var(--emerald); }
+.start-steps strong { font-size: 14px; }
+.start-steps p { font-size: 13px; color: var(--ink-2); margin: 2px 0 8px; }
+
 /* ---------- Dark theme ---------- */
 :root[data-theme="dark"] {
   --bg: #0a0f22;
@@ -734,7 +749,7 @@ a.btn { text-decoration: none; }
 :root[data-theme="dark"] .obj-q { color: #ff9ea1; }
 :root[data-theme="dark"] .band-strong, :root[data-theme="dark"] .traj-scaling, :root[data-theme="dark"] .cal-ev.ready { color: #6ee7a8; }
 :root[data-theme="dark"] .band-promising, :root[data-theme="dark"] .traj-steady, :root[data-theme="dark"] .tag-follow-on, :root[data-theme="dark"] .t-seed, :root[data-theme="dark"] .src-badge { color: #5fd3c4; }
-:root[data-theme="dark"] .band-long-shot, :root[data-theme="dark"] .traj-struggling, :root[data-theme="dark"] .cal-ev.todo, :root[data-theme="dark"] .pill-todo, :root[data-theme="dark"] .t-family, :root[data-theme="dark"] .note-warn { color: #fbbf4d; }
+:root[data-theme="dark"] .src-badge.sample, :root[data-theme="dark"] .band-long-shot, :root[data-theme="dark"] .traj-struggling, :root[data-theme="dark"] .cal-ev.todo, :root[data-theme="dark"] .pill-todo, :root[data-theme="dark"] .t-family, :root[data-theme="dark"] .note-warn { color: #fbbf4d; }
 :root[data-theme="dark"] .band-unlikely, :root[data-theme="dark"] .traj-shut-down { color: #ff9ea1; }
 :root[data-theme="dark"] .tag-investment, :root[data-theme="dark"] .traj-exited, :root[data-theme="dark"] .t-generalist, :root[data-theme="dark"] .seg button.is-on, :root[data-theme="dark"] .vs span, :root[data-theme="dark"] .try-chip, :root[data-theme="dark"] .cite { color: #a5a6fb; }
 :root[data-theme="dark"] .tag-exit, :root[data-theme="dark"] .t-consumer { color: #f9a8d4; }
@@ -771,7 +786,7 @@ a.btn { text-decoration: none; }
 }
 @media (max-width: 640px) {
   .logo-product, .live-pill, .workspace-btn .topbar-who { display: none; }
-  .features, .stats, .form-row { grid-template-columns: 1fr; }
+  .features, .stats, .form-row, .start-steps { grid-template-columns: 1fr; }
   .try-chip span { display: none; }
   .footer-inner { grid-template-columns: 1fr; }
   .meet { grid-template-columns: 56px 1fr; }

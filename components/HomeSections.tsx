@@ -5,6 +5,7 @@ import type { TabId } from "./BriefView";
 import { Monogram, Ring } from "./charts";
 import { Logo } from "./Logo";
 import { meetingIcs, parseIcs, type CalMeeting } from "@/lib/calendar";
+import { downloadText, sampleIcs } from "@/lib/samples";
 
 export type Meeting = CalMeeting;
 
@@ -108,9 +109,9 @@ function download(name: string, text: string) {
 }
 
 export function Meetings({
-  meetings, briefs, onAdd, onImport, onRemove, onPrepare, onOpen, bookingUrl, onBookingUrl,
+  meetings, briefs, onAdd, onImport, onRemove, onPrepare, onOpen, bookingUrl, onBookingUrl, onLoadSamples, onClearSamples,
 }: {
-  meetings: Meeting[]; briefs: Brief[];
+  meetings: Meeting[]; briefs: Brief[]; onLoadSamples: () => void; onClearSamples: () => void;
   onAdd: (m: Meeting) => void; onImport: (ms: Meeting[]) => void; onRemove: (id: string) => void;
   onPrepare: (investor: string, firm: string) => void; onOpen: (b: Brief) => void;
   bookingUrl: string; onBookingUrl: (u: string) => void;
@@ -127,6 +128,17 @@ export function Meetings({
   return (
     <div className="grid">
       <div className="span-4 stack">
+        <div className="card meet-form sample-card">
+          <h3 className="card-title">Try it with sample data</h3>
+          <p className="muted-p small">Loads four example meetings for this week so you can see the calendar and next actions work. Briefs are still researched live.</p>
+          <div className="row-btns">
+            {meetings.some((m) => m.source === "sample")
+              ? <button className="btn btn-sm btn-quiet" onClick={onClearSamples}>Clear samples</button>
+              : <button className="btn btn-sm btn-primary" onClick={onLoadSamples}>Load sample meetings</button>}
+            <button className="btn btn-sm btn-quiet" onClick={() => downloadText("sample-investor-meetings.ics", sampleIcs())}>Download sample .ics</button>
+          </div>
+        </div>
+
         <form className="card meet-form" onSubmit={(e) => {
           e.preventDefault();
           if (!ready) return;
@@ -183,7 +195,7 @@ export function Meetings({
                     <small>{d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}</small>
                   </div>
                   <div className="meet-body">
-                    <strong>{m.investor}{m.source === "calendar" && <span className="src-badge">From calendar</span>}</strong>
+                    <strong>{m.investor}{m.source === "calendar" && <span className="src-badge">From calendar</span>}{m.source === "sample" && <span className="src-badge sample">Sample</span>}</strong>
                     <span>{m.firm || "Firm not set"}</span>
                     <small className={brief ? "ok" : "todo"}>{relTime(m.when)}{brief ? `, brief ready (fit ${brief.prediction.index})` : ", brief not prepared"}</small>
                   </div>
@@ -301,5 +313,28 @@ export function Footer({ onTab }: { onTab: (t: string) => void }) {
         <span>SupaHealth Investor Briefs</span>
       </div>
     </footer>
+  );
+}
+
+/* ---------------- Getting started (for first-time visitors) ---------------- */
+export function GettingStarted({ hasMeetings, hasBriefs, onLoadSamples, onTry }: { hasMeetings: boolean; hasBriefs: boolean; onLoadSamples: () => void; onTry: () => void }) {
+  if (hasMeetings && hasBriefs) return null;
+  const steps = [
+    { done: hasMeetings, title: "Load this week's meetings", text: "Add sample meetings to see the calendar and next actions.", cta: hasMeetings ? null : <button className="btn btn-sm btn-primary" onClick={onLoadSamples}>Load sample meetings</button> },
+    { done: hasBriefs, title: "Prepare a live brief", text: "Click Prepare on a meeting, or use a Try chip above. It takes about 90 seconds.", cta: hasBriefs ? null : <button className="btn btn-sm btn-quiet" onClick={onTry}>Fill in an example</button> },
+    { done: hasBriefs && hasMeetings, title: "Watch the dashboard fill in", text: "The meeting turns green, and coverage, outlook and best fits update from the brief.", cta: null },
+  ];
+  return (
+    <div className="start">
+      <div className="start-head"><strong>New here? Three steps to see everything</strong><span className="muted">Only meetings are samples; every brief is researched live.</span></div>
+      <ol className="start-steps">
+        {steps.map((st, i) => (
+          <li key={i} className={st.done ? "is-done" : ""}>
+            <span className="start-n">{st.done ? "✓" : i + 1}</span>
+            <div><strong>{st.title}</strong><p>{st.text}</p>{st.cta}</div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }

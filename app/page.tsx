@@ -4,7 +4,8 @@ import { Logo } from "@/components/Logo";
 import { BriefForm } from "@/components/BriefForm";
 import { ProfilePanel } from "@/components/ProfilePanel";
 import { BriefView, type TabId } from "@/components/BriefView";
-import { Compare, Features, Footer, HowItWorks, Meetings, RecentList, StatsStrip, type Meeting } from "@/components/HomeSections";
+import { Compare, Features, Footer, GettingStarted, HowItWorks, Meetings, RecentList, StatsStrip, type Meeting } from "@/components/HomeSections";
+import { sampleMeetings } from "@/lib/samples";
 import { CalendarCard, Leaderboard, NextActions, PipelineBands, RoundCoverage } from "@/components/Dashboard";
 import { Directory } from "@/components/Directory";
 import type { Action } from "@/lib/insights";
@@ -85,6 +86,12 @@ export default function Home() {
   function saveMeetings(list: Meeting[]) {
     setMeetings(list);
     try { localStorage.setItem(MEETINGS_KEY, JSON.stringify(list)); } catch {}
+  }
+  function loadSamples() {
+    saveMeetings([...meetings.filter((m) => m.source !== "sample"), ...sampleMeetings()]);
+  }
+  function clearSamples() {
+    saveMeetings(meetings.filter((m) => m.source !== "sample"));
   }
   function saveBooking(u: string) {
     setBooking(u);
@@ -257,6 +264,8 @@ export default function Home() {
           </section>
 
           <main className="main">
+            <GettingStarted hasMeetings={meetings.length > 0} hasBriefs={recent.length > 0} onLoadSamples={loadSamples}
+              onTry={() => { setPreset({ investor: "Kanwaljit Singh", firm: "Fireside Ventures", nonce: Date.now() }); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
             <StatsStrip briefs={recent} meetings={meetings} />
             <div className="grid dash-row">
               <div className="span-7"><CalendarCard meetings={meetings} briefs={recent} onOpen={(b) => openBrief(b)} /></div>
@@ -301,6 +310,7 @@ export default function Home() {
                   onPrepare={prepare}
                   onOpen={(b) => openBrief(b)}
                   bookingUrl={booking} onBookingUrl={saveBooking}
+                  onLoadSamples={loadSamples} onClearSamples={clearSamples}
                 />
               </>
             )}

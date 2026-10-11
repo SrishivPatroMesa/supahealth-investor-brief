@@ -1,5 +1,5 @@
 /** Minimal .ics import / export for meetings. Works with Cal.com, Google Calendar and Outlook exports. */
-export type CalMeeting = { id: string; investor: string; firm: string; when: string; source?: "manual" | "calendar" };
+export type CalMeeting = { id: string; investor: string; firm: string; when: string; source?: "manual" | "calendar" | "sample" };
 
 function toLocalInput(d: Date): string {
   const p = (n: number) => String(n).padStart(2, "0");
