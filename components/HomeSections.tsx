@@ -299,7 +299,6 @@ export function Footer({ onTab }: { onTab: (t: string) => void }) {
       </div>
       <div className="footer-base">
         <span>SupaHealth Investor Briefs</span>
-        <span>Built for MESA Cohort C4, AI and its Applications</span>
       </div>
     </footer>
   );
