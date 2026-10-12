@@ -245,6 +245,21 @@ export default function Home() {
         </>
       ) : homeTab === "dashboard" ? (
         <>
+          {mounted && (
+            <div className="quickstart no-print" role="region" aria-label="Start here">
+              <div className="qs-inner">
+                <span className="qs-label"><span className="qs-pulse" />Start here</span>
+                <p className="qs-text">Try the full workflow in three clicks. Only the meetings are samples; every brief is researched live.</p>
+                <div className="qs-btns">
+                  {meetings.some((m) => m.source === "sample")
+                    ? <button className="btn btn-sm qs-btn qs-done" onClick={clearSamples}>✓ Sample meetings loaded · Clear</button>
+                    : <button className="btn btn-sm qs-btn" onClick={loadSamples}>1. Load sample meetings</button>}
+                  <button className="btn btn-sm qs-btn qs-main" onClick={() => run("Kanwaljit Singh", "Fireside Ventures")}>2. Run a live sample brief</button>
+                  <button className="btn btn-sm qs-btn qs-ghost" onClick={() => goTab("meetings")}>3. See the calendar</button>
+                </div>
+              </div>
+            </div>
+          )}
           <section className="hero hero-home">
             <div className="hero-inner home-grid">
               <div className="intro">
@@ -275,11 +290,11 @@ export default function Home() {
               <div className="span-7"><CalendarCard meetings={meetings} briefs={recent} onOpen={(b) => openBrief(b)} /></div>
               <div className="span-5"><NextActions briefs={recent} meetings={meetings} raise={profile.raiseAmountCr} onAction={onAction} /></div>
             </div>
-            <div className="grid dash-row">
+            {recent.length > 0 && <div className="grid dash-row">
               <div className="span-5"><RoundCoverage briefs={recent} raise={profile.raiseAmountCr} /></div>
               <div className="span-3"><PipelineBands briefs={recent} /></div>
               <div className="span-4"><Leaderboard briefs={recent} onOpen={(b) => openBrief(b)} /></div>
-            </div>
+            </div>}
 
             <h2 className="section-title">Investors to consider <button className="link-btn" onClick={() => goTab("directory")}>Open directory</button></h2>
             <Directory briefs={recent} onPrepare={prepare} onOpen={(b) => openBrief(b)} compact />

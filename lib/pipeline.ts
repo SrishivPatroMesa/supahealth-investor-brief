@@ -127,6 +127,24 @@ export async function runBrief(
     }),
     identityPromise ?? Promise.resolve(),
   ]);
+  // Retry failed tracks once if there is still time to synthesise afterwards.
+  const failedTracks = tracks.filter((t) => trackMeta.some((m) => m.id === t.id && !m.ok));
+  const remaining = 112_000 - (Date.now() - started) - 42_000;
+  if (failedTracks.length && remaining >= 15_000) {
+    await Promise.all(failedTracks.map(async (t) => {
+      emit({ type: "track", track: t.id, status: "active", detail: "Retrying" });
+      try {
+        const r = await groundedResearch(t.prompt, registry, { urls: t.urls, label: `${t.id} retry`, timeoutMs: remaining });
+        notes[t.id] = r.text;
+        const m = trackMeta.find((x) => x.id === t.id)!;
+        m.ok = true; m.sources = r.sourceIds.length;
+        emit({ type: "track", track: t.id, status: "done", sources: r.sourceIds.length });
+      } catch (e) {
+        console.error(`[brief] ${t.id} retry failed:`, (e as Error).message);
+        emit({ type: "track", track: t.id, status: "error", detail: (e as Error).message });
+      }
+    }));
+  }
   if (identityPromise) {
     const r = await identityPromise;
     name = r.resolvedName || name;

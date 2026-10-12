@@ -55,8 +55,16 @@ export function ResearchLedger({ state, investor, firm }: { state: LedgerState; 
           <p className="ledger-sub">Preparing brief</p>
           <h2 className="ledger-title">{investor}<span className="ledger-firm">{firm}</span></h2>
         </div>
-        <span className="ledger-clock" aria-label={`${elapsed} seconds elapsed`}>
-          {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
+        <span className="ledger-time">
+          <span className="ledger-clock" aria-label={`${elapsed} seconds elapsed`}>
+            {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
+          </span>
+          <span className="ledger-left">
+            {state.stages.validate.status === "active" ? "Almost done" :
+              state.stages.synthesis.status === "active" ? "Writing the brief, about 20–40s left" :
+              elapsed < 85 ? `About ${Math.max(10, 95 - elapsed)}s left` : "Finishing up"}
+          </span>
+          <span className="ledger-bar"><span style={{ width: `${Math.min(97, (elapsed / 100) * 100)}%` }} /></span>
         </span>
       </header>
       <ol className="ledger-steps">
